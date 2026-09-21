@@ -1130,7 +1130,7 @@ task.spawn(function()
 
             if isAutoPlayEnabled and not isPlaying and not isRecording and not hasAutoPlayedThisSession then
                 hasAutoPlayedThisSession = true
-                for i = 13, 1, -1 do
+                for i = 5, 1, -1 do
                     StatusLabel.Text = string.format("Status: Match Detected!\nWaiting Spawn Buffer: %d s", i)
                     task.wait(1)
                 end
