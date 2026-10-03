@@ -1,5 +1,5 @@
 -- ========================================================
--- TEMPLATE MACRO GUI HORIZONTAL STYLISH (CYBERPUNK GLOW)
+-- TEMPLATE MACRO GUI WIDE PANEL - COMPACT VERTICAL BUTTONS
 -- ========================================================
 
 local ScreenGui = Instance.new("ScreenGui")
@@ -8,62 +8,55 @@ local TitleLabel = Instance.new("TextLabel")
 local ControlLayout = Instance.new("UIListLayout")
 
 -- Konfigurasi ScreenGui
-ScreenGui.Name = "MacroHorizontalStylishGui"
+ScreenGui.Name = "MacroWidePanelVerticalGui"
 ScreenGui.Parent = game.CoreGui
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
--- 1. FRAME UTAMA (Desain Kaca Gelap / Dark Glossy)
+-- 1. FRAME UTAMA (Memanjang ke samping: 500px, Tinggi disesuaikan ke bawah)
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20) -- Sangat gelap futuristik
-MainFrame.Position = UDim2.new(0.15, 0, 0.05, 0)
-MainFrame.Size = UDim2.new(0, 780, 0, 90) -- Penyesuaian ukuran tipis
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20) -- Dark Premium Theme
+MainFrame.Position = UDim2.new(0.05, 0, 0.3, 0) -- Posisi di samping layar
+MainFrame.Size = UDim2.new(0, 500, 0, 260) -- Layar lebar ke samping (500px)
 MainFrame.Active = true
 MainFrame.Draggable = true
 
--- Sudut melengkung halus untuk Frame Utama
+-- Sudut melengkung halus panel utama
 local mainCorner = Instance.new("UICorner")
 mainCorner.CornerRadius = UDim.new(0, 8)
 mainCorner.Parent = MainFrame
 
--- Garis Tepi Neon Halus (Border Neon)
+-- Border Neon Halus
 local mainStroke = Instance.new("UIStroke")
-mainStroke.Color = Color3.fromRGB(0, 200, 255) -- Warna biru neon
+mainStroke.Color = Color3.fromRGB(0, 200, 255) -- Cyan Neon
 mainStroke.Thickness = 1.5
 mainStroke.Transparency = 0.4
 mainStroke.Parent = MainFrame
 
--- 2. JUDUL MENU (Efek Header Elegan)
+-- 2. JUDUL MENU (Ikut melebar penuh ke samping)
 TitleLabel.Name = "TitleLabel"
 TitleLabel.Parent = MainFrame
 TitleLabel.Size = UDim2.new(1, 0, 0, 28)
 TitleLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-TitleLabel.Text = "   🌟SLOP TD MACRO RAID BY STARLARP"
+TitleLabel.Text = "   🌟 SLOP TD MACRO RAID BY STARLARP"
 TitleLabel.TextColor3 = Color3.fromRGB(240, 240, 255)
 TitleLabel.TextSize = 12
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-TitleLabel.Font = Enum.Font.GothamBold -- Font modern
+TitleLabel.Font = Enum.Font.GothamBold
 
 local titleCorner = Instance.new("UICorner")
 titleCorner.CornerRadius = UDim.new(0, 8)
 titleCorner.Parent = TitleLabel
 
--- Pembatas bawah judul (Garis gradasi tipis)
-local titleStroke = Instance.new("UIStroke")
-titleStroke.Color = Color3.fromRGB(80, 80, 90)
-titleStroke.Thickness = 1
-titleStroke.Parent = TitleLabel
-
--- 3. INTERFACE LAYOUT & PADDING
+-- 3. INTERFACE LAYOUT (Tombol TETAP ke Arah Bawah / Vertikal)
 ControlLayout.Parent = MainFrame
-ControlLayout.FillDirection = Enum.FillDirection.Horizontal
-ControlLayout.Padding = UDim.new(0, 8)
+ControlLayout.FillDirection = Enum.FillDirection.Vertical -- Kunci tombol tetap ke bawah
+ControlLayout.Padding = UDim.new(0, 4) -- Jarak antar tombol dibuat rapat
 ControlLayout.SortOrder = Enum.SortOrder.LayoutOrder
-ControlLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+ControlLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center -- Tombol di tengah panel
 
 local uiPadding = Instance.new("UIPadding")
-uiPadding.PaddingTop = UDim.new(0, 28)
-uiPadding.PaddingLeft = UDim.new(0, 10)
+uiPadding.PaddingTop = UDim.new(0, 34) -- Di bawah judul
 uiPadding.Parent = MainFrame
 
 -- ==========================================
@@ -74,89 +67,76 @@ local macroSpeed = 1.0
 local selectedTower = "None"
 
 -- ==========================================
--- FUNGSI PREMIUM BUTTON (DENGAN GRADASI)
+-- FUNGSI PREMIUM BUTTON (RAMPING & TIDAK BESAR)
 -- ==========================================
-local function createStylishButton(name, text, startColor, endColor, layoutOrder)
+local function createCompactButton(name, text, startColor, endColor, layoutOrder)
     local btn = Instance.new("TextButton")
     btn.Name = name
     btn.Parent = MainFrame
-    btn.Size = UDim2.new(0, 88, 0, 48)
-    btn.BackgroundColor3 = Color3.new(1, 1, 1) -- Harus putih agar gradasi muncul sempurna
+    -- Lebar tombol 460px (mengikuti layar lebar), Tinggi hanya 22px (sangat ramping agar tidak memenuhi layar)
+    btn.Size = UDim2.new(0, 460, 0, 22) 
+    btn.BackgroundColor3 = Color3.new(1, 1, 1)
     btn.Text = text
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Font = Enum.Font.GothamBold -- Font tebal bergaya
+    btn.Font = Enum.Font.GothamBold
     btn.TextSize = 11
-    btn.TextWrapped = true
     btn.LayoutOrder = layoutOrder
     
-    -- Efek Sudut Melengkung Tombol
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 6)
+    corner.CornerRadius = UDim.new(0, 4)
     corner.Parent = btn
 
-    -- Efek Garis Tepi Gelap pada Tombol
     local stroke = Instance.new("UIStroke")
     stroke.Color = Color3.fromRGB(255, 255, 255)
-    stroke.Transparency = 0.85
+    stroke.Transparency = 0.9
     stroke.Thickness = 1
     stroke.Parent = btn
 
-    -- 🌟 EFEK GRADASI WARNA (Membuat Tombol Berkilau/Glossy)
     local gradient = Instance.new("UIGradient")
     gradient.Color = ColorSequence.new(startColor, endColor)
-    gradient.Rotation = 45 -- Arah kemiringan gradasi
-    gradient.Name = "BtnGradient"
+    gradient.Rotation = 0 -- Gradasi horizontal tipis
     gradient.Parent = btn
-    
-    -- Efek Hover Sederhana (Berubah warna sedikit saat disentuh)
-    btn.MouseEnter:Connect(function()
-        gradient.Rotation = 90
-    end)
-    btn.MouseLeave:Connect(function()
-        gradient.Rotation = 45
-    end)
     
     return btn
 end
 
 -- ==========================================
--- PEMBUATAN ELEMEN TOMBOL KONTROL NEON
+-- PEMBUATAN TOMBOL VERTIKAL YANG SLIM
 -- ==========================================
--- Format Warna: (Nama, Teks, Warna Atas, Warna Bawah, Urutan)
-local RecordBtn   = createStylishButton("RecordBtn", "🔴 Record\nOFF", Color3.fromRGB(150, 30, 30), Color3.fromRGB(80, 10, 10), 1)
-local PlayBtn     = createStylishButton("PlayBtn", "▶️ Play\nMacro", Color3.fromRGB(30, 140, 60), Color3.fromRGB(15, 70, 30), 2)
-local AutoplayBtn = createStylishButton("AutoplayBtn", "🔁 Autoplay\nOFF", Color3.fromRGB(30, 80, 160), Color3.fromRGB(15, 40, 90), 3)
-local TowerBtn    = createStylishButton("TowerBtn", "🗼 Target\nDefault", Color3.fromRGB(140, 130, 30), Color3.fromRGB(80, 70, 15), 4)
-local SpeedBtn    = createStylishButton("SpeedBtn", "⚡ Speed\n1x", Color3.fromRGB(110, 40, 140), Color3.fromRGB(60, 20, 80), 5)
-local SaveBtn     = createStylishButton("SaveBtn", "💾 Save\nData", Color3.fromRGB(70, 75, 80), Color3.fromRGB(40, 45, 50), 6)
-local MinimizeBtn = createStylishButton("MinimizeBtn", "➖\nMinimize", Color3.fromRGB(50, 50, 55), Color3.fromRGB(30, 30, 35), 7)
-local CloseBtn    = createStylishButton("CloseBtn", "❌\nClose", Color3.fromRGB(180, 40, 40), Color3.fromRGB(100, 20, 20), 8)
+local RecordBtn   = createCompactButton("RecordBtn", "🔴 Record: OFF", Color3.fromRGB(150, 30, 30), Color3.fromRGB(90, 15, 15), 1)
+local PlayBtn     = createCompactButton("PlayBtn", "▶️ Play Macro", Color3.fromRGB(30, 140, 60), Color3.fromRGB(15, 80, 30), 2)
+local AutoplayBtn = createCompactButton("AutoplayBtn", "🔁 Autoplay: OFF", Color3.fromRGB(30, 80, 160), Color3.fromRGB(15, 45, 90), 3)
+local TowerBtn    = createCompactButton("TowerBtn", "🗼 Target Tower: Default", Color3.fromRGB(140, 130, 30), Color3.fromRGB(80, 70, 15), 4)
+local SpeedBtn    = createCompactButton("SpeedBtn", "⚡ Macro Speed: 1x", Color3.fromRGB(110, 40, 140), Color3.fromRGB(60, 20, 80), 5)
+local SaveBtn     = createCompactButton("SaveBtn", "💾 Save Macro Data", Color3.fromRGB(70, 75, 80), Color3.fromRGB(40, 45, 50), 6)
+local MinimizeBtn = createCompactButton("MinimizeBtn", "➖ Minimize Panel", Color3.fromRGB(50, 50, 55), Color3.fromRGB(30, 30, 35), 7)
+local CloseBtn    = createCompactButton("CloseBtn", "❌ Close UI Completely", Color3.fromRGB(180, 40, 40), Color3.fromRGB(100, 20, 20), 8)
 
 -- ==========================================
--- LOGIKA EVENT HANDLER & DINAMISASI WARNA
+-- LOGIKA EVENT HANDLER
 -- ==========================================
 
 RecordBtn.MouseButton1Click:Connect(function()
     isRecording = not isRecording
-    local grad = RecordBtn:FindFirstChild("BtnGradient")
+    local grad = RecordBtn:FindFirstChild("UIGradient")
     if isRecording then
-        RecordBtn.Text = "🔴 RECORDING"
+        RecordBtn.Text = "🔴 RECORDING ACTIVE..."
         if grad then grad.Color = ColorSequence.new(Color3.fromRGB(255, 50, 50), Color3.fromRGB(180, 0, 0)) end
     else
-        RecordBtn.Text = "🔴 Record\nOFF"
-        if grad then grad.Color = ColorSequence.new(Color3.fromRGB(150, 30, 30), Color3.fromRGB(80, 10, 10)) end
+        RecordBtn.Text = "🔴 Record: OFF"
+        if grad then grad.Color = ColorSequence.new(Color3.fromRGB(150, 30, 30), Color3.fromRGB(90, 15, 15)) end
     end
 end)
 
 AutoplayBtn.MouseButton1Click:Connect(function()
     isAutoPlaying = not isAutoPlaying
-    local grad = AutoplayBtn:FindFirstChild("BtnGradient")
+    local grad = AutoplayBtn:FindFirstChild("UIGradient")
     if isAutoPlaying then
-        AutoplayBtn.Text = "🔁 Autoplay\nON"
+        AutoplayBtn.Text = "🔁 Autoplay: ON"
         if grad then grad.Color = ColorSequence.new(Color3.fromRGB(0, 230, 120), Color3.fromRGB(0, 120, 60)) end
     else
-        AutoplayBtn.Text = "🔁 Autoplay\nOFF"
-        if grad then grad.Color = ColorSequence.new(Color3.fromRGB(30, 80, 160), Color3.fromRGB(15, 40, 90)) end
+        AutoplayBtn.Text = "🔁 Autoplay: OFF"
+        if grad then grad.Color = ColorSequence.new(Color3.fromRGB(30, 80, 160), Color3.fromRGB(15, 45, 90)) end
     end
 end)
 
@@ -164,32 +144,32 @@ TowerBtn.MouseButton1Click:Connect(function()
     if selectedTower == "None" then selectedTower = "DPS"
     elseif selectedTower == "DPS" then selectedTower = "Support"
     else selectedTower = "None" end
-    TowerBtn.Text = "🗼 Target\n" .. selectedTower
+    TowerBtn.Text = "🗼 Target Tower: " .. selectedTower
 end)
 
 SpeedBtn.MouseButton1Click:Connect(function()
     if macroSpeed == 1.0 then macroSpeed = 2.0
     elseif macroSpeed == 2.0 then macroSpeed = 5.0
     else macroSpeed = 1.0 end
-    SpeedBtn.Text = "⚡ Speed\n" .. macroSpeed .. "x"
+    SpeedBtn.Text = "⚡ Macro Speed: " .. macroSpeed .. "x"
 end)
 
--- Melipat menu (Minimize) secara mulus
+-- Fungsi Melipat Menu (Minimize) ke Atas
 local isMinimized = false
 MinimizeBtn.MouseButton1Click:Connect(function()
     isMinimized = not isMinimized
     if isMinimized then
-        MainFrame.Size = UDim2.new(0, 780, 0, 28)
-        MinimizeBtn.Text = "➕\nMaximize"
-        mainStroke.Color = Color3.fromRGB(255, 100, 0) -- Warna border berubah saat minimize
+        MainFrame.Size = UDim2.new(0, 500, 0, 28) -- Menyusut jadi garis horizontal tipis
+        MinimizeBtn.Text = "➕ Maximize Panel"
+        mainStroke.Color = Color3.fromRGB(255, 100, 0)
         for _, child in ipairs(MainFrame:GetChildren()) do
             if child:IsA("TextButton") and child.Name ~= "MinimizeBtn" then
                 child.Visible = false
             end
         end
     else
-        MainFrame.Size = UDim2.new(0, 780, 0, 90)
-        MinimizeBtn.Text = "➖\nMinimize"
+        MainFrame.Size = UDim2.new(0, 500, 0, 260) -- Kembali ke tinggi normal
+        MinimizeBtn.Text = "➖ Minimize Panel"
         mainStroke.Color = Color3.fromRGB(0, 200, 255)
         for _, child in ipairs(MainFrame:GetChildren()) do
             if child:IsA("TextButton") then
@@ -202,4 +182,3 @@ end)
 CloseBtn.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
 end)
-
