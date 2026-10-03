@@ -162,3 +162,226 @@ task.defer(function()
 end)
 
 print("[Slop Macro]: Tahap 1 (Layar & Tombol UI) berhasil dimuat!")
+
+-- =============================================================================
+-- 🌟 SLOP TD MACRO RAID - PART 2: CORE MACRO LOGIC & AUTO PLAYBACK
+-- =============================================================================
+
+-- Memastikan modul grafis UI pada file 1 di atas sudah terpasang
+local MacroGuiMod = require(script.Parent.MacroGui)
+local UI = MacroGuiMod.CreateUI()
+
+if not UI then 
+    warn("[Slop Logic]: Gagal menghubungkan antarmuka UI. Skrip dihentikan.")
+    return 
+end
+
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- State Status Utama Makro
+local isRecording = false
+local isPlaying = false
+local autoPlayEnabled = false
+local macroSpeed = 1
+local startTime = 0
+local currentRaidMap = "Menunggu..."
+
+-- Laci Database Mandiri Terpisah untuk Setiap Map (Raid 1 - Raid 4)
+local raidMacroDatabase = {
+    ["Raid 1"] = {},
+    ["Raid 2"] = {},
+    ["Raid 3"] = {},
+    ["Raid 4"] = {}
+}
+
+local PLACEMENT_KEY = Enum.KeyCode.E
+local selectedTowerTemplate = "Archer"
+
+local PlaceTowerRemote = ReplicatedStorage:FindFirstChild("PlaceTowerEvent") or Instance.new("RemoteEvent")
+local UpgradeTowerRemote = ReplicatedStorage:FindFirstChild("UpgradeTowerEvent") or Instance.new("RemoteEvent")
+
+local function getElapsedTime()
+    return (os.clock() - startTime) * macroSpeed
+end
+
+local function updateStatus(text, color)
+    UI.StatusLabel.Text = "Map Terdeteksi: " .. currentRaidMap .. "\nStatus: " .. text
+    if color then UI.StatusLabel.TextColor3 = color end
+end
+
+local function recordAction(actionType, details)
+    if not isRecording or currentRaidMap == "Menunggu..." then return end
+    if not raidMacroDatabase[currentRaidMap] then return end
+    
+    table.insert(raidMacroDatabase[currentRaidMap], {
+        Time = getElapsedTime(),
+        Type = actionType,
+        Details = details
+    })
+end
+
+-- Logika Otomatis Pemutaran Balik Rekaman Tower
+local function playMacroForCurrentMap()
+    local currentData = raidMacroDatabase[currentRaidMap]
+    if not currentData or #currentData == 0 then 
+        updateStatus("Tidak ada data makro di slot " .. currentRaidMap, Color3.fromRGB(235, 77, 75))
+        return 
+    end
+    if isPlaying then return end
+    
+    isPlaying = true
+    UI.PlayBtn.Text = "⏹️ Stop Macro"
+    UI.PlayBtn.BackgroundColor3 = Color3.fromRGB(235, 77, 75)
+    updateStatus("Memutar Makro...", Color3.fromRGB(68, 189, 50))
+    
+    local playbackStart = os.clock()
+    local index = 1
+    
+    local connection
+    connection = RunService.Heartbeat:Connect(function()
+        if not isPlaying then connection:Disconnect() return end
+        
+        local currentPlaybackTime = (os.clock() - playbackStart) * macroSpeed
+        while index <= #currentData and currentData[index].Time <= currentPlaybackTime do
+            local action = currentData[index]
+            
+            if action.Type == "Place" and action.Details and action.Details.Position then
+                local p = action.Details.Position
+                local pos = Vector3.new(p[1], p[2], p[3])
+                pcall(function() PlaceTowerRemote:FireServer(action.Details.TowerName, CFrame.new(pos)) end)
+            elseif action.Type == "Upgrade" then
+                pcall(function() UpgradeTowerRemote:FireServer(action.Details.TowerID) end)
+            end
+            index = index + 1
+        end
+        
+        if index > #currentData then
+            isPlaying = false
+            UI.PlayBtn.Text = "▶️ Play Macro"
+            UI.PlayBtn.BackgroundColor3 = Color3.fromRGB(68, 189, 50)
+            updateStatus("Selesai diputar.", Color3.fromRGB(0, 255, 150))
+            connection:Disconnect()
+        end
+    end)
+end
+
+-- =============================================================================
+-- DETEKSI OTOMATIS MAP RAID YANG DIACAK (BACKGROUND THREAD)
+-- =============================================================================
+task.spawn(function()
+    local RaidVariable = workspace:FindFirstChild("CurrentRaidMode")
+    
+    local function onRaidMapChanged(newMapName)
+        if not newMapName or newMapName == "" then return end
+        
+        if raidMacroDatabase[newMapName] then
+            currentRaidMap = newMapName
+            updateStatus("Siap (Menunggu Perintah)", Color3.fromRGB(0, 255, 150))
+            
+            if autoPlayEnabled then
+                task.wait(3) 
+                playMacroForCurrentMap()
+            end
+        else
+            updateStatus("Map ("..newMapName..") bukan target Raid.", Color3.fromRGB(241, 196, 15))
+        end
+    end
+
+    if RaidVariable then
+        RaidVariable.Changed:Connect(onRaidMapChanged)
+        onRaidMapChanged(RaidVariable.Value)
+    else
+        task.spawn(function()
+            while not RaidVariable do
+                RaidVariable = workspace:FindFirstChild("CurrentRaidMode")
+                if RaidVariable then
+                    RaidVariable.Changed:Connect(onRaidMapChanged)
+                    onRaidMapChanged(RaidVariable.Value)
+                    break
+                end
+                task.wait(1)
+            end
+        end)
+    end
+end)
+
+-- Listener Keyboard E (Taruh Tower) & Klik (Upgrade)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if not isRecording or currentRaidMap == "Menunggu..." then return end
+    
+    local mouse = LocalPlayer:GetMouse()
+    if not mouse then return end
+
+    if input.KeyCode == PLACEMENT_KEY and mouse.Hit then
+        local details = {
+            TowerName = selectedTowerTemplate,
+            Position = {mouse.Hit.Position.X, mouse.Hit.Position.Y, mouse.Hit.Position.Z}
+        }
+        recordAction("Place", details)
+        pcall(function() PlaceTowerRemote:FireServer(details.TowerName, mouse.Hit) end)
+        updateStatus("Tower Di-Record!", Color3.fromRGB(241, 196, 15))
+    elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
+        if mouse.Target and mouse.Target.Parent:FindFirstChild("Humanoid") then
+            local towerInstance = mouse.Target.Parent
+            recordAction("Upgrade", {TowerID = towerInstance.Name})
+            pcall(function() UpgradeTowerRemote:FireServer(towerInstance) end)
+            updateStatus("Upgrade Di-Record!", Color3.fromRGB(241, 196, 15))
+        end
+    end
+end)
+
+-- =============================================================================
+-- LOGIKA AKSI KONEKSI BUTTON UI
+-- =============================================================================
+UI.RecordBtn.MouseButton1Click:Connect(function()
+    if currentRaidMap == "Menunggu..." then return end
+    isRecording = not isRecording
+    if isRecording then
+        raidMacroDatabase[currentRaidMap] = {}
+        startTime = os.clock()
+        UI.RecordBtn.Text = "⏹️ Stop Rec"
+        UI.RecordBtn.BackgroundColor3 = Color3.fromRGB(235, 77, 75)
+        updateStatus("Merekam Aksi...", Color3.fromRGB(219, 68, 85))
+    else
+        UI.RecordBtn.Text = "🔴 Record Macro"
+        UI.RecordBtn.BackgroundColor3 = Color3.fromRGB(219, 68, 85)
+        updateStatus("Aksi Direkam. Total: " .. #raidMacroDatabase[currentRaidMap], Color3.fromRGB(0, 255, 150))
+    end
+end)
+
+UI.PlayBtn.MouseButton1Click:Connect(function()
+    if isPlaying then isPlaying = false else playMacroForCurrentMap() end
+end)
+
+UI.AutoBtn.MouseButton1Click:Connect(function()
+    autoPlayEnabled = not autoPlayEnabled
+    if autoPlayEnabled then
+        UI.AutoBtn.Text = "🤖 Auto: ON"
+        UI.AutoBtn.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+        playMacroForCurrentMap()
+    else
+        UI.AutoBtn.Text = "🤖 Auto: OFF"
+        UI.AutoBtn.BackgroundColor3 = Color3.fromRGB(72, 84, 96)
+    end
+end)
+
+UI.SpeedBtn.MouseButton1Click:Connect(function()
+    if macroSpeed == 1 then
+        macroSpeed = 2
+        UI.SpeedBtn.Text = "⚡ Speed: 2x"
+        UI.SpeedBtn.BackgroundColor3 = Color3.fromRGB(230, 126, 34)
+    else
+        macroSpeed = 1
+        UI.SpeedBtn.Text = "⚡ Speed: 1x"
+        UI.SpeedBtn.BackgroundColor3 = Color3.fromRGB(241, 196, 15)
+    end
+end)
+
+UI.SaveBtn.MouseButton1Click:Connect(function()
+    updateStatus("Seluruh Data Raid 1-4 Tersimpan!", Color3.fromRGB(155, 89, 182))
+end)
