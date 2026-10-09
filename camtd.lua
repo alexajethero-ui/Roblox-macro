@@ -9,10 +9,13 @@ local settings = {
     AutoSkip = false,
     AutoTP = false,
     TargetMap = "Desert",
-    MacroName = "MyMacro"
+    MacroName = "MyMacro",
+    AutoVote = false,
+    TargetMode = "Easy",
+    AutoLeave = false      -- Fitur Baru
 }
 
--- Load Settings
+-- Load Settings saat pindah map atau ganti server
 if isfile and isfile(filename) then
     local success, decoded = pcall(function() return HttpService:JSONDecode(readfile(filename)) end)
     if success then settings = decoded end
@@ -30,21 +33,27 @@ local isPlaying = false
 local macroData = {}
 local startTime = 0
 
--- Map Place IDs (Ganti dengan Place ID game Anda yang sebenarnya)
-local MapIDs = {
-    ["Desert"] = 12345678, 
-    ["Toilet City"] = 87654321,
-    ["Cameraman HQ"] = 13579246
+-- [[ PEMETAAN ELEVATOR & REMOTE DARI GAME ANDA ]]
+local MapElevators = {
+    ["Desert"] = "Elevator1",
+    ["Toilet City"] = "Elevator8",
+    ["Cameraman HQ"] = "Elevator9"
 }
 
--- [[ UI CREATION ]]
+-- Definisi Jalur Remote Sesuai Temuan Remote Spy Anda
+local ElevatorRemote = game:GetService("ReplicatedStorage"):WaitForChild("ModuleLoader"):WaitForChild("Shared"):WaitForChild("Network"):WaitForChild("RemoteFunction"):WaitForChild("ElevatorEnter")
+local VoteRemote = game:GetService("ReplicatedStorage"):WaitForChild("ModuleLoader"):WaitForChild("Shared"):WaitForChild("Network"):WaitForChild("RemoteEvent"):WaitForChild("ModeVote")
+local SkipRemote = game:GetService("ReplicatedStorage"):WaitForChild("ModuleLoader"):WaitForChild("Shared"):WaitForChild("Network"):WaitForChild("RemoteEvent"):WaitForChild("WaveSkip")
+local LeaveRemote = game:GetService("ReplicatedStorage"):WaitForChild("ModuleLoader"):WaitForChild("Shared"):WaitForChild("Network"):WaitForChild("RemoteEvent"):WaitForChild("OnLeave")
+
+-- [[ UI PANEL CREATION ]]
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "TD_Macro_Panel"
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 350, 0, 420)
+MainFrame.Size = UDim2.new(0, 350, 0, 540) -- Ukuran panel disesuaikan untuk tombol baru
 MainFrame.Position = UDim2.new(0.1, 0, 0.2, 0)
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 MainFrame.Active = true
@@ -60,14 +69,12 @@ Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 20
 Title.Parent = MainFrame
 
--- UI List Layout untuk merapikan tombol
 local UIListLayout = Instance.new("UIListLayout")
 UIListLayout.Parent = MainFrame
 UIListLayout.Padding = UDim.new(0, 10)
 UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
--- Spacer di bawah judul agar tidak menempel
 local Spacer = Instance.new("Frame")
 Spacer.Size = UDim2.new(1, 0, 0, 40)
 Spacer.BackgroundTransparency = 1
@@ -124,7 +131,7 @@ TpToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 TpToggleBtn.LayoutOrder = 5
 TpToggleBtn.Parent = MainFrame
 
--- Dropdown/Tombol Pilihan Map
+-- Tombol Pilihan Map
 local MapBtn = Instance.new("TextButton")
 MapBtn.Size = UDim2.new(0, 300, 0, 35)
 MapBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 150)
@@ -133,43 +140,60 @@ MapBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 MapBtn.LayoutOrder = 6
 MapBtn.Parent = MainFrame
 
+-- Tombol Auto Vote Mode Toggle
+local VoteToggleBtn = Instance.new("TextButton")
+VoteToggleBtn.Size = UDim2.new(0, 300, 0, 35)
+VoteToggleBtn.BackgroundColor3 = settings.AutoVote and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(70, 70, 70)
+VoteToggleBtn.Text = "AUTO VOTE MODE: " .. (settings.AutoVote and "ON" or "OFF")
+VoteToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+VoteToggleBtn.LayoutOrder = 7
+VoteToggleBtn.Parent = MainFrame
+
+-- Tombol Pilihan Mode/Kesulitan
+local ModeBtn = Instance.new("TextButton")
+ModeBtn.Size = UDim2.new(0, 300, 0, 35)
+ModeBtn.BackgroundColor3 = Color3.fromRGB(120, 60, 150)
+ModeBtn.Text = "MODE TARGET: " .. settings.TargetMode
+ModeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ModeBtn.LayoutOrder = 8
+ModeBtn.Parent = MainFrame
+
+-- Tombol Auto Leave Toggle (Baru)
+local LeaveToggleBtn = Instance.new("TextButton")
+LeaveToggleBtn.Size = UDim2.new(0, 300, 0, 35)
+LeaveToggleBtn.BackgroundColor3 = settings.AutoLeave and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(70, 70, 70)
+LeaveToggleBtn.Text = "AUTO LEAVE: " .. (settings.AutoLeave and "ON" or "OFF")
+LeaveToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+LeaveToggleBtn.LayoutOrder = 9
+LeaveToggleBtn.Parent = MainFrame
+
 -- [[ LOGIC & FUNCTIONALITY ]]
 
--- 1. Solusi Upgrade: Logika Deteksi Berdasarkan Posisi Grid
+-- Mengatasi Masalah Variabel Berubah: Deteksi Unit lewat Koordinat XYZ
 local function getUnitAtPosition(position)
-    -- Ganti 'Workspace.PlacedUnits' sesuai dengan folder tempat game Anda menyimpan unit yang sudah dipasang
-    for _, unit in pairs(workspace:WaitForChild("PlacedUnits"):GetChildren()) do
-        if unit:IsA("Model") and unit.PrimaryPart then
-            local distance = (unit.PrimaryPart.Position - position).Magnitude
-            if distance < 2 then -- Toleransi jarak posisi grid
-                return unit
+    local placedFolder = workspace:FindFirstChild("PlacedUnits") or workspace:FindFirstChild("Towers")
+    if placedFolder then
+        for _, unit in pairs(placedFolder:GetChildren()) do
+            if unit:IsA("Model") and unit.PrimaryPart then
+                local distance = (unit.PrimaryPart.Position - position).Magnitude
+                if distance < 2 then
+                    return unit
+                end
             end
         end
     end
     return nil
 end
 
--- Record Action
-local function recordAction(actionType, unitName, position, upgradeLevel)
+-- Simpan Aksi Macro ke Array
+local function recordAction(actionType, unitName, position)
     if not isRecording then return end
     table.insert(macroData, {
         Time = tick() - startTime,
-        Action = actionType, -- "Place" atau "Upgrade"
+        Action = actionType, 
         UnitName = unitName,
-        Position = {position.X, position.Y, position.Z},
-        Level = upgradeLevel
+        Position = {position.X, position.Y, position.Z}
     })
-end
-
--- Integrasi Hook Penempatan Unit untuk Record (Contoh Kerangka Kerja Game TD)
--- Catatan: Anda perlu menyambungkan ini ke RemoteFunction/Event game Anda
--- Contoh: RemoteEvent.OnClientEvent / InvokeServer Hooking
-local function onUnitPlacedByUser(unitName, position)
-    recordAction("Place", unitName, position, 1)
-end
-
-local function onUnitUpgradedByUser(position)
-    recordAction("Upgrade", nil, position, nil)
 end
 
 -- Tombol Record Toggle
@@ -183,7 +207,6 @@ RecordBtn.MouseButton1Click:Connect(function()
     else
         RecordBtn.Text = "RECORD: OFF"
         RecordBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-        -- Auto Save saat record dimatikan
         if writefile then
             writefile(settings.MacroName .. ".json", HttpService:JSONEncode(macroData))
         end
@@ -193,35 +216,25 @@ end)
 -- Tombol Play Macro
 PlayBtn.MouseButton1Click:Connect(function()
     if isPlaying then return end
-    
-    -- Load Macro Data jika ada file eksternal
     if isfile and isfile(settings.MacroName .. ".json") then
         macroData = HttpService:JSONDecode(readfile(settings.MacroName .. ".json"))
     end
-    
     if #macroData == 0 then return end
-    
     isPlaying = true
     task.spawn(function()
         local macroStartTime = tick()
         for _, step in ipairs(macroData) do
             if not isPlaying then break end
-            
-            -- Tunggu waktu timeline yang tepat
             while (tick() - macroStartTime) < step.Time do
                 task.wait(0.05)
             end
-            
-            local targetPos = Vector3.new(step.Position[1], step.Position[2], step.Position[3])
-            
+            local targetPos = Vector3.new(step.Position, step.Position, step.Position)
             if step.Action == "Place" then
-                -- Panggil Remote Penempatan Unit Game Anda di sini
-                -- GameRemote:InvokeServer("PlaceUnit", step.UnitName, targetPos)
+                -- Target jalurnya diisi dengan Remote Event Place game Anda nanti
             elseif step.Action == "Upgrade" then
                 local targetUnit = getUnitAtPosition(targetPos)
                 if targetUnit then
-                    -- Panggil Remote Upgrade Game Anda menggunakan Instansi Unit yang ditemukan
-                    -- GameRemote:InvokeServer("UpgradeUnit", targetUnit)
+                    -- Target jalurnya diisi dengan Remote Event Upgrade game Anda nanti
                 end
             end
         end
@@ -229,17 +242,7 @@ PlayBtn.MouseButton1Click:Connect(function()
     end)
 end)
 
--- Auto Skip Loop
-task.spawn(function()
-    while true do
-        task.wait(1)
-        if settings.AutoSkip then
-            -- Panggil Remote Auto Skip game Anda disini
-            -- ReplicatedStorage.RemoteEvents.SkipWave:FireServer()
-        end
-    end
-end)
-
+-- Toggle & Fungsi Firing Auto Skip
 SkipBtn.MouseButton1Click:Connect(function()
     settings.AutoSkip = not settings.AutoSkip
     SkipBtn.Text = "AUTO SKIP: " .. (settings.AutoSkip and "ON" or "OFF")
@@ -247,31 +250,93 @@ SkipBtn.MouseButton1Click:Connect(function()
     saveSettings()
 end)
 
--- Pilihan Map Loop Dropdown Sederhana
+task.spawn(function()
+    while true do
+        task.wait(1)
+        if settings.AutoSkip then
+            pcall(function()
+                SkipRemote:FireServer()
+            end)
+        end
+    end
+end)
+
+-- Toggle & Pilihan Map Target
 local maps = {"Desert", "Toilet City", "Cameraman HQ"}
 MapBtn.MouseButton1Click:Connect(function()
     local currentIndex = table.find(maps, settings.TargetMap) or 1
     local nextIndex = currentIndex + 1
-    if nextIndex > #maps then nextIndex = 1 end
-    settings.TargetMap = maps[nextIndex]
-    MapBtn.Text = "MAP TARGET: " .. settings.TargetMap
-    saveSettings()
+if nextIndex > #maps then nextIndex = 1 end
+settings.TargetMap = maps[nextIndex]
+MapBtn.Text = "MAP TARGET: " .. settings.TargetMap
+saveSettings()
 end)
-
--- Auto Teleport Logic saat masuk lobi / pindah map
+-- Toggle & Fungsi Auto Teleport via Elevator Enter
 TpToggleBtn.MouseButton1Click:Connect(function()
-    settings.AutoTP = not settings.AutoTP
-    TpToggleBtn.Text = "AUTO TELEPORT: " .. (settings.AutoTP and "ON" or "OFF")
-    TpToggleBtn.BackgroundColor3 = settings.AutoTP and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(70, 70, 70)
-    saveSettings()
+settings.AutoTP = not settings.AutoTP
+TpToggleBtn.Text = "AUTO TELEPORT: " .. (settings.AutoTP and "ON" or "OFF")
+TpToggleBtn.BackgroundColor3 = settings.AutoTP and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(70, 70, 70)
+saveSettings()
 end)
-
 task.spawn(function()
-    if settings.AutoTP then
-        local targetPlaceID = MapIDs[settings.TargetMap]
-        if targetPlaceID and game.PlaceId ~= targetPlaceID then
-            task.wait(3) -- Tunggu map benar-benar ter-load sebelum TP
-            TeleportService:Teleport(targetPlaceID, LocalPlayer)
-        end
-    end
+while true do
+task.wait(2)
+if settings.AutoTP then
+local targetElevator = MapElevators[settings.TargetMap]
+if targetElevator then
+pcall(function()
+ElevatorRemote:InvokeServer(targetElevator)
+end)
+end
+end
+end
+end)
+-- Logik Auto Vote Difficulty
+VoteToggleBtn.MouseButton1Click:Connect(function()
+settings.AutoVote = not settings.AutoVote
+VoteToggleBtn.Text = "AUTO VOTE MODE: " .. (settings.AutoVote and "ON" or "OFF")
+VoteToggleBtn.BackgroundColor3 = settings.AutoVote and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(70, 70, 70)
+saveSettings()
+end)
+local modes = {"Easy", "Normal", "Hard", "Insane"}
+ModeBtn.MouseButton1Click:Connect(function()
+local currentIndex = table.find(modes, settings.TargetMode) or 1
+local nextIndex = currentIndex + 1
+if nextIndex > #modes then nextIndex = 1 end
+settings.TargetMode = modes[nextIndex]
+ModeBtn.Text = "MODE TARGET: " .. settings.TargetMode
+saveSettings()
+end)
+task.spawn(function()
+while true do
+task.wait(1)
+if settings.AutoVote then
+pcall(function()
+VoteRemote:FireServer(settings.TargetMode)
+end)
+end
+end
+end)
+-- LOGIK AUTO LEAVE (BARU)
+LeaveToggleBtn.MouseButton1Click:Connect(function()
+settings.AutoLeave = not settings.AutoLeave
+LeaveToggleBtn.Text = "AUTO LEAVE: " .. (settings.AutoLeave and "ON" or "OFF")
+LeaveToggleBtn.BackgroundColor3 = settings.AutoLeave and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(70, 70, 70)
+saveSettings()
+end)
+task.spawn(function()
+while true do
+task.wait(1)
+if settings.AutoLeave then
+-- Memicu leave secara otomatis ketika layar kemenangan/kekalahan terdeteksi
+-- Biasanya ditandai dengan munculnya UI tertentu, misalnya game.PlayerGui:FindFirstChild("VictoryUI")
+local matchEnded = workspace:FindFirstChild("MatchEnded") or game.PlayerGui:FindFirstChild("GameOver") or game.PlayerGui:FindFirstChild("Victory")
+if matchEnded then
+pcall(function()
+LeaveRemote:FireServer()
+end)
+task.wait(5) -- Beri jeda agar tidak melakukan spam saat teleport lobi berlangsung
+end
+end
+end
 end)
